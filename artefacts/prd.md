@@ -8,7 +8,6 @@ The emotional job of the product is not “task management.”
 It is:
 
 - make consistency visible
-- make streak behavior satisfying
 - provide a simple “commit history” for personal habits
 - create confidence through visual proof of repetition
 
@@ -35,12 +34,12 @@ Build a fully working PWA replica of the referenced habit tracker with the follo
 - GitHub-like heatmap as primary visual anchor
 - support for both single-completion and counted-completion habits
 - create, edit, archive, and view habits
-- category, icon, emoji, color, streak, and reminder configuration
+- category, icon, emoji, color, and reminder configuration
 - multiple list/grid/time views
 - mobile-first dark UI
 - installable PWA behavior
 
-The replica should achieve **feature-complete MVP parity** with the observed screenshots, except for explicitly ignored analytics/graph-heavy features not required for the core experience.
+The replica should achieve **core MVP parity** with the observed screenshots for the local-first tracking experience, excluding explicitly removed or deferred features.
 
 ---
 
@@ -67,7 +66,6 @@ Creating a habit and checking in must be fast.
 
 ## In Scope
 
-- onboarding/info screen
 - empty state
 - create habit flow
 - edit habit flow
@@ -133,7 +131,6 @@ Users should be able to:
 - mark progress daily
 - view consistency through a heatmap
 - inspect a habit in more detail
-- share the habit card as an image
 - archive habits they no longer track
 - receive reminders without needing cloud sync
 
@@ -148,11 +145,9 @@ A one-page intro lists major app capabilities:
 - build habits
 - check off completions
 - heatmap visualization
-- streaks
 - reminders
 - dashboard customization
 - edit history
-- sharing
 - widgets
 - privacy / local-only storage
 
@@ -178,7 +173,6 @@ Fields visible:
 Editable:
 - name
 - color
-- streak goal interval
 - reminder
 - categories
 - completion tracking mode
@@ -216,13 +210,6 @@ Custom Value:
 - user enters custom value for completion
 - likely for metrics such as pages read, minutes studied, liters drank, etc.
 
-### 7.8 Streak goal
-Selectable interval options:
-- None
-- Daily
-- Week
-- Month
-
 ### 7.9 Main habit card
 Card includes:
 - icon block
@@ -237,11 +224,8 @@ Card includes:
 Expanded habit detail shows:
 - larger heatmap with month labels
 - day-of-week labels
-- streak goal pill
-- streak count / flame metric
 - edit action
 - settings/menu action
-- share option
 - archive option
 - monthly calendar view below
 - month picker
@@ -263,10 +247,7 @@ Compact strip with:
 ### 7.13 Archive action
 Habit can be archived from detail menu.
 
-### 7.14 Share action
-Habit can be shared from detail menu.
-
-### 7.15 Privacy promise
+### 7.14 Privacy promise
 Data remains on device.
 
 ---
@@ -316,7 +297,6 @@ Each habit must support these fields:
 - `archived`
 - `createdAt`
 - `updatedAt`
-- `streakGoalInterval` (`none`, `daily`, `weekly`, `monthly`)
 - `reminders[]`
 - `categories[]`
 - `trackingType` (`step`, `custom`)
@@ -377,13 +357,7 @@ Aggregated daily value determines heatmap fill state.
 
 ## 9.1 Onboarding
 
-This is not an mvp scope, we can ignore it.
-The app should show an onboarding/info screen at first launch or when manually reopened from settings.
-
-Acceptance behavior:
-- user can proceed from onboarding to app
-- onboarding highlights main features
-- onboarding does not block future use after completion unless manually reopened
+Out of MVP scope. Do not build onboarding for the first release.
 
 ---
 
@@ -409,7 +383,6 @@ Required:
 
 Optional:
 - description
-- streak goal interval
 - reminder(s)
 - categories
 - completion tracking mode
@@ -431,7 +404,6 @@ Editable:
 - description
 - icon / emoji
 - color
-- streak goal interval
 - reminders
 - categories
 - tracking type
@@ -482,30 +454,7 @@ User must be able to:
 
 ---
 
-## 9.8 Streak Goal
-
-This is not an mvp scope, we can ignore it.
-User must be able to choose one interval:
-- None
-- Daily
-- Week
-- Month
-
-Observed interpretation:
-This is not just “show streak.”
-It appears to define the cadence expectation.
-
-Expected behavior for MVP:
-- `None`: no streak requirement logic beyond general history
-- `Daily`: streak depends on hitting daily target each day
-- `Week`: streak depends on hitting at least one completion target per week
-- `Month`: streak depends on hitting at least one completion target per month
-
-If exact streak behavior is ambiguous, replica should document the chosen interpretation and keep it internally consistent.
-
----
-
-## 9.9 Reminders
+## 9.8 Reminders
 
 User must be able to add local reminder schedules to a habit.
 
@@ -531,7 +480,7 @@ Product requirement:
 
 ---
 
-## 9.10 Completion Tracking Modes
+## 9.9 Completion Tracking Modes
 
 ### Mode A — Step By Step
 - each completion increments daily progress by 1
@@ -554,7 +503,7 @@ Example:
 
 ---
 
-## 9.11 Daily Check-In UI
+## 9.10 Daily Check-In UI
 
 For binary/single-entry habits:
 - prominent check button on card
@@ -572,7 +521,7 @@ Observed from screenshots:
 
 ---
 
-## 9.12 Heatmap
+## 9.11 Heatmap
 
 The heatmap is a grid of small rounded cells showing history over time.
 
@@ -597,14 +546,12 @@ Suggested fill states:
 
 ---
 
-## 9.13 Habit Detail View
+## 9.12 Habit Detail View
 
 Opening a habit should show an expanded detail view/modal with:
 
 - habit icon and title
 - larger heatmap
-- streak goal pill
-- streak count metric
 - edit button
 - menu button
 - monthly calendar section
@@ -612,12 +559,11 @@ Opening a habit should show an expanded detail view/modal with:
 - month navigation arrows
 
 Menu must include:
-- Share Habit
 - Archive
 
 ---
 
-## 9.14 Calendar View
+## 9.13 Calendar View
 
 The detail screen must include a month calendar.
 
@@ -630,7 +576,7 @@ Behavior:
 
 ---
 
-## 9.15 Main View Modes
+## 9.14 Main View Modes
 
 App must support 3 presentation modes, selectable by bottom switcher.
 
@@ -647,7 +593,7 @@ All three must reflect the same underlying habit data.
 
 ---
 
-## 9.16 Archive Habit
+## 9.15 Archive Habit
 
 User must be able to archive a habit.
 
@@ -658,21 +604,7 @@ Behavior:
 
 ---
 
-## 9.17 Share Habit
-
-This is not an mvp scope, we can ignore it.
-User must be able to generate a shareable image of a habit.
-
-Minimum MVP interpretation:
-- render a stylized habit summary card
-- include habit name
-- include heatmap snapshot
-- use Web Share API where supported
-- fallback to image export/download
-
----
-
-## 9.18 Settings
+## 9.16 Settings
 
 This is not an mvp scope, we can ignore it.
 Observed settings menu includes many items. For MVP replica, settings should include at least:
@@ -769,7 +701,7 @@ The MVP is accepted only if all of the following are true.
 - New habit appears immediately after save.
 
 ## 12.4 Edit Habit
-- User can edit an existing habit’s name, color, icon, streak goal, categories, reminder, and tracking mode.
+- User can edit an existing habit’s name, color, icon, categories, reminder, and tracking mode.
 - Changes persist locally after refresh.
 
 ## 12.5 Icon and Emoji Picker
@@ -782,52 +714,43 @@ The MVP is accepted only if all of the following are true.
 - User can create a custom category with name and icon.
 - Created category becomes selectable for future habits.
 
-## 12.7 Streak Goal
-- User can choose one of None, Daily, Week, Month.
-- Selected streak goal persists and is shown in habit detail.
-
-## 12.8 Completion Modes
+## 12.7 Completion Modes
 - User can configure a habit as Step By Step or Custom Value.
 - User can set target completions per day.
 - Daily progress is computed correctly against the target.
 
-## 12.9 Single Entry Habit
+## 12.8 Single Entry Habit
 - For a habit with target 1/day, user can complete today with a single interaction.
 - Heatmap updates the current day cell immediately.
 
-## 12.10 Counted Habit
+## 12.9 Counted Habit
 - For a habit with target >1/day, user can increment today’s progress.
 - Heatmap visually reflects partial and full progress.
 
-## 12.11 Heatmap
+## 12.10 Heatmap
 - Main card shows compact heatmap history.
 - Detail view shows expanded heatmap with month labels.
 - Heatmap color matches habit color.
 - Uncompleted days are visually distinct from completed days.
 
-## 12.12 Detail View
+## 12.11 Detail View
 - User can open a habit detail view.
-- Detail view includes larger heatmap, month calendar, edit action, and archive/share menu.
+- Detail view includes larger heatmap, month calendar, edit action, and archive action.
 
-## 12.13 Archive
+## 12.12 Archive
 - User can archive a habit.
 - Archived habit disappears from active views.
 - Archived habit data is still available locally.
 
-## 12.14 Share
-This is not an mvp scope, we can ignore it.
-- User can generate a shareable representation of a habit card.
-- Sharing works through supported browser capabilities or fallback export.
-
-## 12.15 View Modes
+## 12.13 View Modes
 - User can switch between 3 main display modes.
 - All modes reflect the same habit data accurately.
 
-## 12.16 Persistence
+## 12.14 Persistence
 - All data persists across refresh and reopening the PWA.
 - App remains usable offline after initial load.
 
-## 12.17 Reminder
+## 12.15 Reminder
 - User can configure reminder UI per habit.
 - Reminder scheduling works on supported environments.
 - Unsupported environments are clearly handled without breaking the app.
@@ -839,7 +762,7 @@ This is not an mvp scope, we can ignore it.
 This MVP is successful if:
 
 ### Primary success criterion
-- The replica achieves **100% feature completeness for the observed MVP surface area** from the provided screenshots, excluding explicitly ignored analytics and non-core premium extras.
+- The replica achieves the core local-first MVP surface area from the provided screenshots, excluding explicitly removed features such as streaks, sharing, widgets, and non-core premium extras.
 
 ### Secondary success criteria
 - User can create first habit in under 60 seconds.
@@ -863,9 +786,9 @@ The screenshots reveal product surface, but not all internal rules. These must b
 
 1. Whether tapping a completed day decrements, removes, or opens edit? the answer is toggle it back to 0. Ex. Today is monday, i did 7/7 of target, if i accidentally cick, it back to 0/7.
 2. Exact intensity logic for counted habits? already answered for the fill  color.
-3. Exact streak computation for week/month intervals? the answer is ignore, no streak feature.
+3. Exact streak computation for week/month intervals? ignore for MVP because streaks are not part of the product.
 4. Whether multiple reminders per habit are supported in MVP? the answer is yes.
-5. Whether share exports full detail card or summary card only? the answer is ignore for mvp
+5. Whether share exports full detail card or summary card only? ignore for MVP because sharing is not part of the product.
 6. Whether edit history includes editing past day entries from the calendar? There is no edit history, once the day passed, the last stated for the D-1 will be kept and cannot be changed. Then new habit tracking track for today only. NO BACKDATE.
 
 These are not excuses to stall.

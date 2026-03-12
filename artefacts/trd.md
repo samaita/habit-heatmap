@@ -1,11 +1,12 @@
 # TRD - Habit Heatmap MVP
 
 ## 1. Scope Alignment
-This TRD maps directly to PRD acceptance criteria `12.1` through `12.14`.
+This TRD maps directly to PRD acceptance criteria `12.1` through `12.15`.
 
-Notes on PRD conflicts:
-- `12.14 Share` is marked in PRD as "not MVP scope". It is documented here as a deferred design with no implementation in MVP.
-- `12.7 Streak Goal` is also marked in functional scope text as not MVP, but appears in acceptance criteria. To satisfy acceptance traceability, this TRD includes persistence/display support for streak goal selection.
+Scope exclusions carried from PRD:
+- no streak feature
+- no sharing feature
+- no onboarding flow in MVP
 
 ## 2. Architecture Baseline
 - Frontend: mobile-first PWA built with vanilla JavaScript modules (no frontend framework).
@@ -15,7 +16,7 @@ Notes on PRD conflicts:
 - No auth, no cloud sync, no remote habit data storage.
 
 Core entities:
-- `Habit`: id, name, description, iconType, iconValue, color, archived, createdAt, updatedAt, streakGoalInterval, trackingType, targetPerDay, unitLabel.
+- `Habit`: id, name, description, iconType, iconValue, color, archived, createdAt, updatedAt, trackingType, targetPerDay, unitLabel.
 - `Category`: id, name, iconType, iconValue, isSystem, createdAt.
 - `Completion`: id, habitId, dateLocal, value, createdAt, updatedAt.
 - `Reminder` (local capability model): id, habitId, time, enabled, deliverySupport.
@@ -33,7 +34,6 @@ Derived read models:
 - Client Data: native IndexedDB as the primary persistence layer; localStorage only for lightweight UI preferences.
 - Date/Time: native `Date` with strict local-date keying (`YYYY-MM-DD`) to avoid UTC bucket drift.
 - Icons/Emoji: SVG icon set (local assets) plus native emoji rendering for the dual picker model.
-- Sharing Path (deferred): `html-to-image`/Canvas snapshot + Web Share API with download fallback (design only for MVP).
 - Deployment: Cloudflare Pages for static hosting; optional Cloudflare Worker only for reminder delivery mechanics where supported, never for habit data storage.
 - Testing: framework-agnostic unit tests (if added) plus Playwright mobile viewport tests for acceptance flows.
 
@@ -144,23 +144,7 @@ flowchart TD
   G --> H[Category selectable in future flows]
 ```
 
-### 12.7 Streak Goal
-Design:
-- Persist enum `none|daily|weekly|monthly` on Habit.
-- Streak goal selector in create/edit.
-- Show selected goal badge in detail view.
-- Calculation logic can remain minimal for MVP if only selection persistence/display is required.
-
-```mermaid
-flowchart TD
-  A[Create/Edit habit] --> B[Select streak goal interval]
-  B --> C[Save habit]
-  C --> D[Persist streakGoalInterval]
-  D --> E[Open detail view]
-  E --> F[Render streak goal pill]
-```
-
-### 12.8 Completion Modes
+### 12.7 Completion Modes
 Design:
 - Mode selector: `step` or `custom`.
 - `targetPerDay` required positive integer.
@@ -179,7 +163,7 @@ flowchart TD
   F --> G[Set cell state 0/low/medium/full]
 ```
 
-### 12.9 Single Entry Habit
+### 12.8 Single Entry Habit
 Design:
 - For `targetPerDay = 1`, card action is single-tap complete.
 - Action writes completion for today local date.
@@ -194,7 +178,7 @@ flowchart TD
   E --> F[Show completed state immediately]
 ```
 
-### 12.10 Counted Habit
+### 12.9 Counted Habit
 Design:
 - For `targetPerDay > 1`, card action increments progress (or opens quick input for custom values).
 - Each entry updates daily aggregate.
@@ -214,7 +198,7 @@ flowchart TD
   H -->|Yes| J[Render full fill]
 ```
 
-### 12.11 Heatmap
+### 12.10 Heatmap
 Design:
 - Compact heatmap on main card, expanded heatmap in detail.
 - Expanded view includes month headers and weekday labels.
@@ -231,13 +215,13 @@ flowchart TD
   E --> G[Render expanded heatmap + month labels]
 ```
 
-### 12.12 Detail View
+### 12.11 Detail View
 Design:
 - Opening a habit presents detail modal/page containing:
   - large heatmap
   - month calendar
   - edit action
-  - overflow menu with archive/share entries
+  - archive action
 - Detail receives live updates from the same local store as main views.
 
 ```mermaid
@@ -246,12 +230,12 @@ flowchart TD
   B --> C[Render large heatmap]
   B --> D[Render month calendar]
   B --> E[Render Edit action]
-  B --> F[Render menu Archive/Share]
+  B --> F[Render Archive action]
   E --> G[Open edit flow]
-  F --> H[Open menu actions]
+  F --> H[Archive habit]
 ```
 
-### 12.13 Archive
+### 12.12 Archive
 Design:
 - Archive action toggles `habit.archived = true`.
 - Active queries filter `archived = false`.
@@ -268,24 +252,59 @@ flowchart TD
   D --> G[Archived query still returns habit + history]
 ```
 
-### 12.14 Share (Deferred in MVP)
-Design (documented, not implemented in MVP):
-- Generate card snapshot from habit detail.
-- Attempt Web Share API with image payload when supported.
-- Fallback to download/export image.
-
-MVP decision:
-- Keep menu entry optional/hidden behind feature flag until implementation phase.
-- Acceptance can only be claimed after implementation; this TRD only defines technical path.
+### 12.13 View Modes
+Design:
+- Bottom switcher selects among 3 presentations backed by the same habit/query model.
+- Views:
+  - standard heatmap cards
+  - recent-days compact strip
+  - mini-card/grid list
+- Switching views changes presentation only, never the underlying data.
 
 ```mermaid
 flowchart TD
-  A[User selects Share] --> B[Render shareable card image]
-  B --> C{Web Share supports files?}
-  C -->|Yes| D[Invoke navigator.share]
-  C -->|No| E[Offer image download/export]
-  D --> F[Share complete]
-  E --> F
+  A[Load active habits] --> B[Read current view mode]
+  B --> C{Selected mode}
+  C -->|Standard| D[Render heatmap cards]
+  C -->|Recent| E[Render compact recent-days view]
+  C -->|Mini| F[Render mini-card grid]
+  D --> G[All views read same habit data]
+  E --> G
+  F --> G
+```
+
+### 12.14 Persistence
+Design:
+- IndexedDB stores habits, categories, completions, and reminders.
+- Service worker caches the app shell for repeat load and offline access.
+- App boot rehydrates local state entirely from browser storage with no server dependency.
+
+```mermaid
+flowchart TD
+  A[User creates/edits/logs data] --> B[Write to IndexedDB]
+  B --> C[Refresh local UI state]
+  C --> D[User closes app]
+  D --> E[User reopens app offline or online]
+  E --> F[Load app shell from cache]
+  F --> G[Load data from IndexedDB]
+  G --> H[Render same local state]
+```
+
+### 12.15 Reminder
+Design:
+- Reminder configuration is stored per habit in local data.
+- UI supports multiple reminder times, enable/disable, and supported/unsupported-state messaging.
+- Delivery is best-effort based on browser/platform capability; unsupported environments keep configuration visible without breaking core tracking.
+
+```mermaid
+flowchart TD
+  A[Open habit reminder settings] --> B[Add or edit reminder time]
+  B --> C[Persist reminder config locally]
+  C --> D{Environment supports delivery?}
+  D -->|Yes| E[Register reminder delivery path]
+  D -->|No| F[Show unsupported state]
+  E --> G[Core app still local-first]
+  F --> G
 ```
 
 ## 5. Cross-Cutting Technical Decisions

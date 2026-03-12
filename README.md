@@ -1,7 +1,26 @@
 # Habit Heatmap
 
-Habit Heatmap is a local-first PWA habit tracker inspired by GitHub contribution graphs.  
-Core value: make consistency visible with a heatmap-first experience, minimal friction check-ins, and no account/cloud sync.
+This repo is a vibe-coded project with a specific purpose: test a structured vibe coding workflow instead of doing random prompting. I would like to see what is the best workflow to replicate a software as custom.
+
+The focus here is not "ask AI to build something and see what happens." The focus is:
+- define the product clearly in a PRD
+- review and tighten the scope
+- translate that scope into a TRD
+- review the technical design before implementation
+
+The current artifact set is intentionally docs-first. The repo is being used to validate whether vibe coding works better when guided by explicit product and technical review loops.
+
+Product direction for the MVP:
+- local-first PWA habit tracker
+- heatmap-first UX inspired by GitHub contribution graphs
+- no account system
+- no cloud sync
+- simplified MVP scope driven by PRD/TRD alignment
+
+Key working principle:
+- review `artefacts/prd.md` and `artefacts/trd.md` first
+- use implementation as a follow-on step
+- avoid unscoped feature prompting
 
 ## Stack
 - Vanilla JavaScript (ES modules), mobile-first PWA
@@ -44,3 +63,13 @@ npm run build
 - PWA manifest is served
 - Service worker is registered
 - Main habit flows work offline after first load
+
+## Workflow Intent
+This repository exists to test a more disciplined AI-assisted workflow:
+
+- start with product requirements
+- review and simplify acceptance criteria
+- align the technical design to the real MVP
+- only then move into implementation
+
+If you are using this repo as context for an AI coding session, the expected behavior is to inspect and reconcile the PRD and TRD before generating product code.
