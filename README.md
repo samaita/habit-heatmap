@@ -24,15 +24,22 @@ Key working principle:
 
 ## Stack
 - Vanilla JavaScript (ES modules), mobile-first PWA
-- Primer CSS + small custom CSS (heatmap states and mobile layout tuning)
+- Custom CSS for heatmap states and mobile layout tuning
 - IndexedDB for primary local persistence
 - Service Worker + `manifest.webmanifest` for offline/installable behavior
+- Vite for local dev serving and static production builds
 - Cloudflare Pages for deployment
 
 ## Run Locally
-Current repository status: docs-first (implementation scaffold not committed yet).
+The app is a plain HTML/CSS/JS PWA, but it still needs to run through a local HTTP server.
 
-When the app scaffold is present, use:
+Vite is used here for two practical reasons:
+- it serves the app on `localhost` during development
+- it builds the static output for deployment
+
+This is useful because the app relies on root-relative asset paths, a web app manifest, and a service worker. Those are not reliable when opening `index.html` directly with `file://`.
+
+Use:
 
 ```bash
 npm install
@@ -47,6 +54,14 @@ Production preview:
 npm run build
 npm run preview
 ```
+
+## Why Vite
+Vite is not being used as a framework. It is only the dev server and build tool.
+
+What Vite is doing in this repo:
+- serve `index.html` and root-relative assets correctly during local development
+- make local testing work on `localhost` for PWA-related features
+- generate the `dist/` folder for deployment
 
 ## Deploy
 Target platform: Cloudflare Pages.
