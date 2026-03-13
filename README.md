@@ -88,3 +88,30 @@ This repository exists to test a more disciplined AI-assisted workflow:
 - only then move into implementation
 
 If you are using this repo as context for an AI coding session, the expected behavior is to inspect and reconcile the PRD and TRD before generating product code.
+
+## Release Matrix
+
+| Feature | Status |
+| --- | --- |
+| Local-only storage and privacy-first use | Added |
+| Installable offline-capable PWA | Added |
+| Empty state | Added |
+| Create and edit habit flow | Added |
+| Name and description fields | Added |
+| Color selection | Added |
+| Icon and emoji picker | Added |
+| Picker search | Added |
+| Heatmap-first habit cards | Added |
+| Daily completion tracking | Added |
+| Custom value tracking | Added |
+| Goal / target per day | Added |
+| Habit detail with year heatmap | Added |
+| Weekly / recent view | Added |
+| Archive and restore | Added |
+| Dark mobile-first UI | Added |
+| Reminders | Planned |
+| Categories | Planned |
+| Third layout mode | Planned |
+| Month navigation and monthly calendar detail | Planned |
+| Habit history | Planned |
+| Reorder habits | Planned |
