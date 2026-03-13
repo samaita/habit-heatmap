@@ -73,7 +73,7 @@ async function init() {
   db = await openDatabase();
   appState.reminderCapability = detectReminderCapability();
   await loadState();
-  seedDefaultsIfNeeded();
+  await seedDefaultsIfNeeded();
   bindGlobalEvents();
   registerServiceWorker();
   scheduleReminders();
@@ -82,7 +82,13 @@ async function init() {
 
 function detectReminderCapability() {
   if ("Notification" in window && "serviceWorker" in navigator) {
-    return Notification.permission === "granted" ? "supported" : "needs-permission";
+    if (Notification.permission === "granted") {
+      return "supported";
+    }
+    if (Notification.permission === "default") {
+      return "needs-permission";
+    }
+    return "blocked";
   }
   return "unsupported";
 }
@@ -1216,7 +1222,13 @@ async function requestNotificationPermission() {
   }
 
   const permission = await Notification.requestPermission();
-  appState.reminderCapability = permission === "granted" ? "supported" : "unsupported";
+  if (permission === "granted") {
+    appState.reminderCapability = "supported";
+  } else if (permission === "default") {
+    appState.reminderCapability = "needs-permission";
+  } else {
+    appState.reminderCapability = "blocked";
+  }
   scheduleReminders();
   renderModalLayer();
 }
@@ -1228,6 +1240,10 @@ function reminderSupportLabel() {
 
   if (appState.reminderCapability === "needs-permission") {
     return "Notification capability detected. Grant permission to enable best-effort reminders.";
+  }
+
+  if (appState.reminderCapability === "blocked") {
+    return "Notifications were blocked in this browser. Reminder settings stay saved locally, but delivery is disabled until permission is allowed.";
   }
 
   return "This browser environment does not support reliable local reminders. Habit tracking still works normally.";
@@ -1256,6 +1272,7 @@ function scheduleReminders() {
           icon: "/icons/icon.svg",
           badge: "/icons/icon.svg",
         });
+        scheduleReminders();
       }, delay);
       reminderTimers.push(timer);
     });
