@@ -1,6 +1,7 @@
 const DB_NAME = "habit-heatmap-db";
 const DB_VERSION = 1;
 const TODAY = () => formatDateKey(new Date());
+const CURRENT_YEAR = new Date().getFullYear();
 
 const SYSTEM_CATEGORIES = [
   { name: "Art", iconValue: "🎨" },
@@ -29,18 +30,18 @@ const COLORS = [
 ];
 
 const ICON_OPTIONS = [
-  { label: "Bolt", value: "⚡" },
-  { label: "Book", value: "📘" },
-  { label: "Brush", value: "🖌️" },
-  { label: "Coffee", value: "☕" },
-  { label: "Code", value: "💻" },
-  { label: "Dumbbell", value: "🏋️" },
-  { label: "Drop", value: "💧" },
-  { label: "Heart", value: "♥" },
-  { label: "Leaf", value: "🍃" },
-  { label: "Moon", value: "☾" },
-  { label: "Run", value: "🏃" },
-  { label: "Sun", value: "☀" },
+  { label: "Bolt", value: "bolt", path: "M14 2 5 13h6l-1 9 9-11h-6z" },
+  { label: "Book", value: "book", path: "M6 4.5A2.5 2.5 0 0 1 8.5 2H20v18H8.5A2.5 2.5 0 0 0 6 22z M6 4v18H4V6a2 2 0 0 1 2-2" },
+  { label: "Brush", value: "brush", path: "M9 18c-1.5 0-3 1-3 3 0 .6.4 1 1 1 2 0 4-1.5 4-3.5 0-.7-.2-1.2-.5-1.5L19 8.5a2.1 2.1 0 0 0-3-3L7.5 14c-.4.3-.7.8-.9 1.3-.2.6-.1 1.4.4 1.9.5.5 1.2.8 2 .8z" },
+  { label: "Coffee", value: "coffee", path: "M18 8h1a4 4 0 0 1 0 8h-1 M2 8h16v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z M6 2v3 M10 2v3 M14 2v3" },
+  { label: "Code", value: "code", path: "m8 9-5 3 5 3 M16 9l5 3-5 3 M14 4l-4 16" },
+  { label: "Dumbbell", value: "dumbbell", path: "M4 10v4 M7 8v8 M17 8v8 M20 10v4 M7 12h10" },
+  { label: "Drop", value: "drop", path: "M12 2s6 6 6 11a6 6 0 1 1-12 0c0-5 6-11 6-11z" },
+  { label: "Heart", value: "heart", path: "m12 21-1.3-1.2C5.2 14.8 2 11.9 2 8.3 2 5.4 4.3 3 7.2 3c1.7 0 3.4.8 4.5 2.1C12.9 3.8 14.6 3 16.3 3 19.2 3 21.5 5.4 21.5 8.3c0 3.6-3.2 6.5-8.7 11.5z" },
+  { label: "Leaf", value: "leaf", path: "M6 20c6 0 12-4 12-12V4h-4C8 4 4 8 4 14c0 2.2.7 4.2 2 6z M8 16c2-2 5-5 9-7" },
+  { label: "Moon", value: "moon", path: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" },
+  { label: "Run", value: "run", path: "M13 5a2 2 0 1 0 0 .01 M9 22l1-5 2-2 2 1 2 6 M8 13l3-2 1-3 3 2 2 1" },
+  { label: "Sun", value: "sun", path: "M12 4V2 M12 22v-2 M4.9 4.9 3.5 3.5 M20.5 20.5l-1.4-1.4 M2 12h2 M20 12h2 M4.9 19.1l-1.4 1.4 M20.5 3.5l-1.4 1.4 M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" },
 ];
 
 const EMOJI_OPTIONS = [
@@ -54,7 +55,6 @@ const appState = {
   completions: [],
   reminders: [],
   activeView: "cards",
-  selectedYear: new Date().getFullYear(),
   selectedMonth: new Date().getMonth(),
   activeModal: null,
   formDraft: null,
@@ -64,6 +64,8 @@ const appState = {
   installPrompt: null,
   archivedOpen: false,
   reminderCapability: "unsupported",
+  toast: null,
+  formModalScroll: 0,
 };
 
 let db;
@@ -149,21 +151,28 @@ function bindGlobalEvents() {
 function handleInput(event) {
   const target = event.target;
   if (target.matches("[data-field]")) {
-    updateDraftField(target.dataset.field, target.type === "checkbox" ? target.checked : target.value);
+    updateDraftField(target.dataset.field, target.type === "checkbox" ? target.checked : target.value, { render: false });
+    syncDraftControls();
   }
 
   if (target.matches("[data-picker-query]")) {
     appState.pickerQuery = target.value;
-    renderModalLayer();
+    renderPickerItems();
   }
 
   if (target.matches("[data-quick-custom-value]")) {
-    updateDraftField("quickCustomValue", target.value);
+    updateDraftField("quickCustomValue", target.value, { render: false });
   }
 }
 
 function handleChange(event) {
   const target = event.target;
+
+  if (target.matches("select[data-field]")) {
+    updateDraftField(target.dataset.field, target.value);
+    syncDraftControls();
+    return;
+  }
 
   if (target.matches("[data-category-checkbox]")) {
     const next = new Set(appState.formDraft.categoryIds || []);
@@ -172,16 +181,8 @@ function handleChange(event) {
     } else {
       next.delete(target.value);
     }
-    updateDraftField("categoryIds", [...next]);
-  }
-
-  if (target.matches("[data-reminder-enabled]")) {
-    const reminderId = target.dataset.reminderEnabled;
-    const reminder = appState.formDraft.reminders.find((item) => item.id === reminderId);
-    if (reminder) {
-      reminder.enabled = target.checked;
-      renderModalLayer();
-    }
+    updateDraftField("categoryIds", [...next], { render: false });
+    target.closest(".chip")?.classList.toggle("selected", target.checked);
   }
 
   if (target.matches("[data-view-mode]")) {
@@ -203,24 +204,34 @@ async function handleClick(event) {
   } else if (action === "close-modal") {
     closeModal();
   } else if (action === "pick-color") {
-    updateDraftField("color", target.dataset.color);
+    updateDraftField("color", target.dataset.color, { render: false });
+    syncFormVisuals();
   } else if (action === "open-picker") {
+    appState.formModalScroll = getModalScrollTop();
     appState.activeModal = "picker";
     appState.pickerTab = target.dataset.tab || "icon";
+    appState.pickerQuery = "";
+    renderModalLayer();
+  } else if (action === "set-icon-type") {
+    appState.formDraft.iconType = target.dataset.tab || "icon";
+    appState.formModalScroll = getModalScrollTop();
+    appState.activeModal = "picker";
+    appState.pickerTab = appState.formDraft.iconType;
     appState.pickerQuery = "";
     renderModalLayer();
   } else if (action === "picker-tab") {
     appState.pickerTab = target.dataset.tab;
     renderModalLayer();
   } else if (action === "select-picker-item") {
-    updateDraftField("iconType", appState.pickerTab);
-    updateDraftField("iconValue", target.dataset.value);
+    updateDraftField("iconType", appState.pickerTab, { render: false });
+    updateDraftField("iconValue", target.dataset.value, { render: false });
     appState.activeModal = "form";
     renderModalLayer();
+    setModalScrollTop(appState.formModalScroll);
   } else if (action === "save-habit") {
     await saveHabit();
   } else if (action === "edit-habit") {
-    openHabitForm(appState.selectedHabitId);
+    openHabitForm(target.dataset.habitId || appState.selectedHabitId);
   } else if (action === "open-detail") {
     appState.selectedHabitId = target.dataset.habitId;
     appState.activeModal = "detail";
@@ -236,30 +247,9 @@ async function handleClick(event) {
   } else if (action === "toggle-archived") {
     appState.archivedOpen = !appState.archivedOpen;
     renderMain();
-  } else if (action === "switch-month") {
-    appState.selectedMonth = Number(target.dataset.month);
-    renderModalLayer();
-  } else if (action === "switch-year") {
-    appState.selectedYear += Number(target.dataset.delta);
-    renderMain();
-    renderModalLayer();
   } else if (action === "set-view") {
-    appState.activeView = target.dataset.view;
+    appState.activeView = target.dataset.view === "mini" ? "cards" : target.dataset.view;
     renderMain();
-  } else if (action === "add-reminder-row") {
-    appState.formDraft.reminders.push({
-      id: crypto.randomUUID(),
-      habitId: appState.formDraft.id,
-      time: "08:00",
-      enabled: true,
-      deliverySupport: appState.reminderCapability,
-    });
-    renderModalLayer();
-  } else if (action === "remove-reminder-row") {
-    appState.formDraft.reminders = appState.formDraft.reminders.filter(
-      (item) => item.id !== target.dataset.reminderId
-    );
-    renderModalLayer();
   } else if (action === "save-category") {
     await saveCustomCategory();
   } else if (action === "open-category-create") {
@@ -270,8 +260,6 @@ async function handleClick(event) {
     draft.iconValue = target.dataset.value;
     draft.iconType = "emoji";
     updateDraftField("categoryDraft", draft);
-  } else if (action === "request-notification-permission") {
-    await requestNotificationPermission();
   } else if (action === "install-app") {
     await promptInstall();
   }
@@ -283,27 +271,21 @@ function render() {
     <div class="shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Habit Heatmap</p>
-          <h1>Consistency, visible.</h1>
+          <h1>Habit Heatmap</h1>
+          <p class="tagline">Track your habit with GitHub style commit</p>
         </div>
         <div class="header-actions" id="header-actions"></div>
       </header>
-      <section class="year-bar card">
-        <button class="ghost-btn" data-action="switch-year" data-delta="-1" aria-label="Previous year">‹</button>
-        <div>
-          <p class="eyebrow">Selected year</p>
-          <strong>${appState.selectedYear}</strong>
-        </div>
-        <button class="ghost-btn" data-action="switch-year" data-delta="1" aria-label="Next year">›</button>
-      </section>
       <main id="main-content"></main>
       <section id="modal-layer"></section>
+      <section id="toast-layer"></section>
     </div>
   `;
 
   renderHeaderActions();
   renderMain();
   renderModalLayer();
+  renderToast();
 }
 
 function renderHeaderActions() {
@@ -312,9 +294,11 @@ function renderHeaderActions() {
     return;
   }
 
+  const archivedCount = getArchivedHabits().length;
+
   root.innerHTML = `
-    <button class="ghost-btn" data-action="toggle-archived" aria-label="Archived habits">Archive</button>
     ${appState.installPrompt ? '<button class="primary-btn" data-action="install-app">Install</button>' : ""}
+    ${archivedCount > 0 ? '<button class="ghost-btn" data-action="toggle-archived" aria-label="Archived habits">Archive</button>' : ""}
     <button class="primary-btn" data-action="open-create" aria-label="Create habit">+</button>
   `;
 }
@@ -329,16 +313,15 @@ function renderMain() {
   const archived = getArchivedHabits();
 
   root.innerHTML = `
-    ${renderDashboardStats(activeHabits)}
+    ${activeHabits.length > 0 ? renderDashboardStats(activeHabits) : ""}
     ${activeHabits.length === 0 ? renderEmptyState() : renderHabits(activeHabits)}
-    ${appState.archivedOpen ? renderArchived(archived) : ""}
+    ${appState.archivedOpen && archived.length > 0 ? renderArchived(archived) : ""}
   `;
 }
 
 function renderDashboardStats(activeHabits) {
   const completedToday = activeHabits.filter((habit) => getDailyTotal(habit.id, TODAY()) >= habit.targetPerDay).length;
   const totalToday = activeHabits.length;
-  const reminderCount = appState.reminders.filter((reminder) => reminder.enabled).length;
 
   return `
     <section class="stats-grid">
@@ -346,11 +329,6 @@ function renderDashboardStats(activeHabits) {
         <p class="eyebrow">Today</p>
         <strong>${completedToday}/${totalToday}</strong>
         <span>habits reached target</span>
-      </article>
-      <article class="card stat-card">
-        <p class="eyebrow">Reminders</p>
-        <strong>${reminderCount}</strong>
-        <span>active times saved</span>
       </article>
     </section>
   `;
@@ -364,34 +342,32 @@ function renderEmptyState() {
       <h2>Let's track a new habit.</h2>
       <p>Start with one habit, one color, one visible trail across the year.</p>
       <div class="empty-actions">
-        <button class="primary-btn" data-action="open-create">Get started</button>
-        <button class="ghost-btn" data-action="open-create">Create first habit</button>
+        <button class="primary-btn" data-action="open-create">Create first habit</button>
       </div>
     </section>
   `;
 }
 
 function renderHabits(activeHabits) {
+  const activeView = appState.activeView === "mini" ? "cards" : appState.activeView;
   return `
     <section class="view-switcher card">
       <div class="segmented">
-        ${renderViewButton("cards", "Cards")}
-        ${renderViewButton("recent", "Recent")}
-        ${renderViewButton("mini", "Mini")}
+        ${renderViewButton(activeView, "cards", "Cards")}
+        ${renderViewButton(activeView, "recent", "Weekly")}
       </div>
       <span class="caption">${activeHabits.length} active habit${activeHabits.length === 1 ? "" : "s"}</span>
     </section>
-    <section>
-      ${appState.activeView === "cards" ? renderCardsView(activeHabits) : ""}
-      ${appState.activeView === "recent" ? renderRecentView(activeHabits) : ""}
-      ${appState.activeView === "mini" ? renderMiniView(activeHabits) : ""}
+    <section class="habit-list-section">
+      ${activeView === "cards" ? renderCardsView(activeHabits) : ""}
+      ${activeView === "recent" ? renderRecentView(activeHabits) : ""}
     </section>
   `;
 }
 
-function renderViewButton(view, label) {
+function renderViewButton(activeView, view, label) {
   return `
-    <button class="${appState.activeView === view ? "segmented-btn active" : "segmented-btn"}" data-action="set-view" data-view="${view}">
+    <button class="${activeView === view ? "segmented-btn active" : "segmented-btn"}" data-action="set-view" data-view="${view}">
       ${label}
     </button>
   `;
@@ -409,25 +385,24 @@ function renderHabitCard(habit) {
   const today = getDailyTotal(habit.id, TODAY());
   const progressLabel = `${today}/${habit.targetPerDay}`;
   const accent = habit.color;
-  const categories = habit.categoryIds
-    .map((id) => appState.categories.find((category) => category.id === id))
-    .filter(Boolean);
+  const isComplete = today >= habit.targetPerDay;
+  const subtitle = habit.description ? escapeHtml(habit.description) : "";
 
   return `
     <article class="card habit-card" style="--accent:${accent}">
-      <button class="card-tap-area" data-action="open-detail" data-habit-id="${habit.id}" aria-label="Open ${escapeHtml(habit.name)} detail"></button>
+      <button class="card-tap-area" data-action="edit-habit" data-habit-id="${habit.id}" aria-label="Edit ${escapeHtml(habit.name)}"></button>
       <div class="habit-card-header">
         <div class="habit-meta">
-          <div class="icon-tile" style="background:${accent}20;color:${accent}">${habit.iconValue}</div>
+          <div class="icon-tile" style="background:${accent}20;color:${accent}">${renderVisual(habit.iconType, habit.iconValue, accent, "md")}</div>
           <div>
             <h3>${escapeHtml(habit.name)}</h3>
-            <p>${habit.description ? escapeHtml(habit.description) : renderCategoryLine(categories)}</p>
+            ${subtitle ? `<p>${subtitle}</p>` : ""}
           </div>
         </div>
         <div class="habit-card-actions">
           ${habit.targetPerDay > 1 ? `<button class="ghost-btn small" data-action="decrement-habit" data-habit-id="${habit.id}" aria-label="Decrease ${escapeHtml(habit.name)}">−</button>` : ""}
-          <button class="primary-btn action-btn" data-action="complete-habit" data-habit-id="${habit.id}" aria-label="Complete ${escapeHtml(habit.name)}">
-            ${habit.trackingType === "custom" ? "+" : habit.targetPerDay === 1 ? "✓" : "+"}
+          <button class="${isComplete ? "primary-btn action-btn" : "ghost-btn action-btn neutral"}" data-action="complete-habit" data-habit-id="${habit.id}" aria-label="Complete ${escapeHtml(habit.name)}">
+            ${habit.trackingType === "custom" ? "+" : habit.targetPerDay === 1 ? (isComplete ? "✓" : "○") : "+"}
           </button>
         </div>
       </div>
@@ -440,15 +415,8 @@ function renderHabitCard(habit) {
   `;
 }
 
-function renderCategoryLine(categories) {
-  if (categories.length === 0) {
-    return "No category";
-  }
-  return categories.slice(0, 2).map((category) => `${category.iconValue} ${category.name}`).join(" · ");
-}
-
 function renderCompactHeatmap(habit) {
-  const cells = buildYearCells(habit.id, appState.selectedYear).slice(-140);
+  const cells = getCompactHeatmapCells(habit.id, CURRENT_YEAR);
   return `
     <div class="heatmap compact-heatmap">
       ${cells.map((cell) => renderHeatCell(cell, habit.color, true)).join("")}
@@ -457,11 +425,11 @@ function renderCompactHeatmap(habit) {
 }
 
 function renderRecentView(habits) {
-  const dates = getLastNDates(5);
+  const dates = getLastNDates(7);
   return `
     <div class="card recent-board">
       <div class="recent-header">
-        <h2>Last 5 days</h2>
+        <h2>Last 7 days</h2>
         <span>Compact daily progress</span>
       </div>
       <div class="recent-grid">
@@ -474,7 +442,7 @@ function renderRecentView(habits) {
             (habit) => `
               <div class="recent-row">
                 <button class="recent-habit-label" data-action="open-detail" data-habit-id="${habit.id}">
-                  <span>${habit.iconValue}</span>
+                  <span class="inline-visual">${renderVisual(habit.iconType, habit.iconValue, habit.color, "sm")}</span>
                   <span>${escapeHtml(habit.name)}</span>
                 </button>
                 ${dates
@@ -514,7 +482,7 @@ function renderMiniView(habits) {
                 </div>
               </div>
               <div class="heatmap mini-heatmap">
-                ${buildYearCells(habit.id, appState.selectedYear).slice(-63).map((cell) => renderHeatCell(cell, habit.color, true)).join("")}
+                ${buildYearCells(habit.id, CURRENT_YEAR).slice(-63).map((cell) => renderHeatCell(cell, habit.color, true)).join("")}
               </div>
             </article>
           `
@@ -540,7 +508,7 @@ function renderArchived(archivedHabits) {
             (habit) => `
               <div class="archived-item">
                 <div>
-                  <strong>${habit.iconValue} ${escapeHtml(habit.name)}</strong>
+                  <strong>${renderVisual(habit.iconType, habit.iconValue, habit.color, "sm")} ${escapeHtml(habit.name)}</strong>
                   <p>${habit.description ? escapeHtml(habit.description) : "Archived locally"}</p>
                 </div>
                 <button class="ghost-btn" data-action="restore-habit" data-habit-id="${habit.id}">Restore</button>
@@ -559,28 +527,140 @@ function renderModalLayer() {
     return;
   }
 
+  const scrollState = captureModalScroll();
+
   if (appState.activeModal === "form" && appState.formDraft) {
     root.innerHTML = renderHabitFormModal();
+    restoreModalScroll(scrollState);
     return;
   }
 
   if (appState.activeModal === "picker" && appState.formDraft) {
     root.innerHTML = renderPickerModal();
+    restoreModalScroll(scrollState);
     return;
   }
 
   if (appState.activeModal === "detail" && appState.selectedHabitId) {
     root.innerHTML = renderDetailModal();
+    restoreModalScroll(scrollState);
     return;
   }
 
   root.innerHTML = "";
 }
 
+function captureModalScroll() {
+  const backdrop = document.querySelector(".modal-backdrop");
+  if (!backdrop) {
+    return null;
+  }
+
+  return {
+    top: backdrop.scrollTop,
+    left: backdrop.scrollLeft,
+  };
+}
+
+function restoreModalScroll(scrollState) {
+  if (!scrollState) {
+    return;
+  }
+
+  const backdrop = document.querySelector(".modal-backdrop");
+  if (!backdrop) {
+    return;
+  }
+
+  backdrop.scrollTop = scrollState.top;
+  backdrop.scrollLeft = scrollState.left;
+}
+
+function getModalScrollTop() {
+  return document.querySelector(".modal-backdrop")?.scrollTop || 0;
+}
+
+function setModalScrollTop(value) {
+  const backdrop = document.querySelector(".modal-backdrop");
+  if (!backdrop) {
+    return;
+  }
+
+  backdrop.scrollTop = value || 0;
+}
+
+function renderToast() {
+  const root = document.querySelector("#toast-layer");
+  if (!root) {
+    return;
+  }
+
+  root.innerHTML = appState.toast ? `<div class="toast" role="status" aria-live="polite">${escapeHtml(appState.toast)}</div>` : "";
+}
+
+function showToast(message) {
+  appState.toast = message;
+  renderToast();
+  window.clearTimeout(showToast.timeoutId);
+  showToast.timeoutId = window.setTimeout(() => {
+    appState.toast = null;
+    renderToast();
+  }, 2200);
+}
+
+function syncDraftControls() {
+  const saveButton = document.querySelector("[data-save-habit]");
+  if (saveButton) {
+    saveButton.disabled = !validateHabitDraft(appState.formDraft);
+  }
+}
+
+function syncFormVisuals() {
+  if (!appState.formDraft || appState.activeModal !== "form") {
+    return;
+  }
+
+  const preview = document.querySelector(".icon-preview.large");
+  if (preview) {
+    preview.style.background = `${appState.formDraft.color}20`;
+    preview.style.color = appState.formDraft.color;
+    preview.innerHTML = renderVisual(appState.formDraft.iconType, appState.formDraft.iconValue, appState.formDraft.color, "lg");
+  }
+
+  document.querySelectorAll(".color-option").forEach((button) => {
+    button.classList.toggle("selected", button.dataset.color === appState.formDraft.color);
+  });
+
+  document.querySelectorAll("[data-action='set-icon-type']").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === appState.formDraft.iconType);
+  });
+}
+
+function renderPickerItems() {
+  const grid = document.querySelector("#picker-grid");
+  if (!grid || !appState.formDraft) {
+    return;
+  }
+
+  grid.innerHTML = getFilteredPickerItems()
+    .map(
+      (item) => `
+        <button
+          class="picker-item ${appState.formDraft.iconValue === item.value && appState.formDraft.iconType === appState.pickerTab ? "selected" : ""}"
+          data-action="select-picker-item"
+          data-value="${item.value}"
+          aria-label="${escapeAttr(item.label)}">
+          <span>${renderVisual(appState.pickerTab, item.value, appState.formDraft.color, "lg")}</span>
+        </button>
+      `
+    )
+    .join("");
+}
+
 function renderHabitFormModal() {
   const draft = appState.formDraft;
   const canSave = validateHabitDraft(draft);
-  const reminderStatus = reminderSupportLabel();
+  const isCustomTracking = draft.trackingType === "custom";
 
   return `
     <div class="modal-backdrop">
@@ -592,83 +672,87 @@ function renderHabitFormModal() {
           </div>
           <button class="ghost-btn" data-action="close-modal" aria-label="Close modal">✕</button>
         </div>
-        <div class="form-section">
-          <label>Name
-            <input data-field="name" maxlength="60" placeholder="Read 10 pages" value="${escapeAttr(draft.name)}" />
-          </label>
-          <label>Description
-            <input data-field="description" maxlength="120" placeholder="Optional note" value="${escapeAttr(draft.description || "")}" />
-          </label>
-          <div class="picker-row">
-            <button class="picker-preview" data-action="open-picker" data-tab="${draft.iconType}">
-              <span class="icon-preview" style="background:${draft.color}20;color:${draft.color}">${draft.iconValue}</span>
-              <span>${draft.iconType === "emoji" ? "Emoji" : "Icon"} picker</span>
-            </button>
+
+        <div class="form-layout">
+          <div class="form-column">
+            <div class="form-section">
+              <div class="form-section-head">
+                <div>
+                  <p class="eyebrow">Habit</p>
+                  <h3>Core details</h3>
+                </div>
+              </div>
+              <div class="inline-form-layout">
+                <div class="inline-form-main">
+                  <label>Name
+                    <input data-field="name" maxlength="60" placeholder="Read 10 pages" value="${escapeAttr(draft.name)}" />
+                  </label>
+                  <label>Description
+                    <input data-field="description" maxlength="120" placeholder="Optional note" value="${escapeAttr(draft.description || "")}" />
+                  </label>
+                </div>
+                <div class="inline-form-visual">
+                  <button class="picker-preview visual-preview" data-action="open-picker" data-tab="${draft.iconType}">
+                    <span class="icon-preview large" style="background:${draft.color}20;color:${draft.color}">
+                      ${renderVisual(draft.iconType, draft.iconValue, draft.color, "lg")}
+                    </span>
+                  </button>
+                  <div class="picker-toggle segmented">
+                    <button class="${draft.iconType === "icon" ? "segmented-btn active" : "segmented-btn"}" data-action="set-icon-type" data-tab="icon">Icon</button>
+                    <button class="${draft.iconType === "emoji" ? "segmented-btn active" : "segmented-btn"}" data-action="set-icon-type" data-tab="emoji">Emoji</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <details class="form-section details-block">
+              <summary>Advanced options</summary>
+              <div class="section-block">
+                <div class="section-header">
+                  <div>
+                    <p class="eyebrow">Goal</p>
+                    <h3>Set daily target</h3>
+                  </div>
+                </div>
+                <label>Tracking mode
+                  <select data-field="trackingType">
+                    <option value="step" ${draft.trackingType === "step" ? "selected" : ""}>Step by step</option>
+                    <option value="custom" ${draft.trackingType === "custom" ? "selected" : ""}>Custom value</option>
+                  </select>
+                </label>
+                <p class="field-hint">${renderTrackingModeHint(draft.trackingType)}</p>
+                ${isCustomTracking ? `
+                  <div class="field-grid basic-grid">
+                    <label>Target per day
+                      <input data-field="targetPerDay" type="number" min="1" max="999" value="${escapeAttr(String(draft.targetPerDay))}" />
+                    </label>
+                    <label>Unit label
+                      <input data-field="unitLabel" maxlength="18" placeholder="minutes" value="${escapeAttr(draft.unitLabel || "")}" />
+                    </label>
+                  </div>
+                ` : ""}
+              </div>
+            </details>
+          </div>
+
+          <div class="form-column visual-column">
+            <div class="form-section">
+              <div class="section-header">
+                <div>
+                  <p class="eyebrow">Color</p>
+                  <h3>Pick one accent</h3>
+                </div>
+              </div>
+              <div class="color-grid">
+                ${COLORS.map((color) => renderColorOption(color, color === draft.color)).join("")}
+              </div>
+            </div>
           </div>
         </div>
-
-        <div class="form-section">
-          <div class="section-header">
-            <div>
-              <p class="eyebrow">Color</p>
-              <h3>Pick one accent</h3>
-            </div>
-          </div>
-          <div class="color-grid">
-            ${COLORS.map((color) => renderColorOption(color, color === draft.color)).join("")}
-          </div>
-        </div>
-
-        <details class="form-section details-block" open>
-          <summary>Advanced options</summary>
-          <div class="field-grid">
-            <label>Tracking mode
-              <select data-field="trackingType">
-                <option value="step" ${draft.trackingType === "step" ? "selected" : ""}>Step by step</option>
-                <option value="custom" ${draft.trackingType === "custom" ? "selected" : ""}>Custom value</option>
-              </select>
-            </label>
-            <label>Target per day
-              <input data-field="targetPerDay" type="number" min="1" max="999" value="${escapeAttr(String(draft.targetPerDay))}" />
-            </label>
-            <label>Unit label
-              <input data-field="unitLabel" maxlength="18" placeholder="minutes" value="${escapeAttr(draft.unitLabel || "")}" />
-            </label>
-          </div>
-
-          <div class="section-block">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Categories</p>
-                <h3>Attach context</h3>
-              </div>
-              <button class="ghost-btn" data-action="open-category-create">New category</button>
-            </div>
-            <div class="chip-grid">
-              ${appState.categories.map((category) => renderCategoryCheck(category, draft.categoryIds)).join("")}
-            </div>
-            ${renderCategoryDraft(draft.categoryDraft)}
-          </div>
-
-          <div class="section-block">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Reminders</p>
-                <h3>${draft.reminders.length} configured</h3>
-              </div>
-              <button class="ghost-btn" data-action="add-reminder-row">Add time</button>
-            </div>
-            <p class="caption">${reminderStatus}</p>
-            ${appState.reminderCapability === "needs-permission" ? '<button class="ghost-btn" data-action="request-notification-permission">Allow notifications</button>' : ""}
-            <div class="reminder-list">
-              ${draft.reminders.map((reminder) => renderReminderRow(reminder)).join("") || "<p class='muted'>No reminder times saved.</p>"}
-            </div>
-          </div>
-        </details>
 
         <div class="modal-footer">
           <button class="ghost-btn" data-action="close-modal">Cancel</button>
-          <button class="primary-btn" data-action="save-habit" ${canSave ? "" : "disabled"}>Save habit</button>
+          <button class="primary-btn" data-action="save-habit" data-save-habit ${canSave ? "" : "disabled"}>Save habit</button>
         </div>
       </section>
     </div>
@@ -693,7 +777,7 @@ function renderCategoryCheck(category, selectedIds) {
   return `
     <label class="${checked ? "chip selected" : "chip"}">
       <input type="checkbox" data-category-checkbox value="${category.id}" ${checked ? "checked" : ""} />
-      <span>${category.iconValue} ${escapeHtml(category.name)}</span>
+      <span>${renderVisual(category.iconType, category.iconValue, "#f5a623", "sm")} ${escapeHtml(category.name)}</span>
     </label>
   `;
 }
@@ -714,7 +798,7 @@ function renderCategoryDraft(categoryDraft) {
       </label>
       <div class="section-header inline">
         <span>Pick emoji icon</span>
-        <span class="icon-preview small">${categoryDraft.iconValue}</span>
+        <span class="icon-preview small">${renderVisual(categoryDraft.iconType, categoryDraft.iconValue, "#f5a623", "sm")}</span>
       </div>
       <div class="category-icon-grid">
         ${["🏷️", "🧠", "🛠️", "📗", "🧘", "🏃", "☀️", "🌙"].map((value) => `
@@ -729,7 +813,7 @@ function renderCategoryDraft(categoryDraft) {
 window.__habitHeatmapCategoryDraft = (field, value) => {
   const next = appState.formDraft.categoryDraft || { name: "", iconType: "emoji", iconValue: "🏷️" };
   next[field] = value;
-  updateDraftField("categoryDraft", next);
+  updateDraftField("categoryDraft", next, { render: false });
 };
 
 function renderReminderRow(reminder) {
@@ -774,13 +858,16 @@ function renderPickerModal() {
           <button class="${appState.pickerTab === "emoji" ? "segmented-btn active" : "segmented-btn"}" data-action="picker-tab" data-tab="emoji">Emoji</button>
         </div>
         <input class="search-input" data-picker-query placeholder="Search" value="${escapeAttr(appState.pickerQuery)}" />
-        <div class="picker-grid">
+        <div class="picker-grid" id="picker-grid">
           ${list
             .map(
               (item) => `
-                <button class="picker-item" data-action="select-picker-item" data-value="${item.value}">
-                  <span>${item.value}</span>
-                  <small>${escapeHtml(item.label)}</small>
+                <button
+                  class="picker-item ${appState.formDraft.iconValue === item.value && appState.formDraft.iconType === appState.pickerTab ? "selected" : ""}"
+                  data-action="select-picker-item"
+                  data-value="${item.value}"
+                  aria-label="${escapeAttr(item.label)}">
+                  <span>${renderVisual(appState.pickerTab, item.value, appState.formDraft.color, "lg")}</span>
                 </button>
               `
             )
@@ -797,16 +884,15 @@ function renderDetailModal() {
     return "";
   }
 
-  const yearCells = buildYearCells(habit.id, appState.selectedYear);
-  const months = buildMonthOptions(appState.selectedYear);
-  const monthCalendar = buildMonthCalendar(habit.id, appState.selectedYear, appState.selectedMonth, habit.targetPerDay);
+  const yearCells = buildYearCells(habit.id, CURRENT_YEAR);
+  const months = buildMonthOptions(CURRENT_YEAR);
 
   return `
     <div class="modal-backdrop">
       <section class="modal-card detail-modal">
         <div class="modal-header">
           <div class="detail-title">
-            <span class="icon-tile" style="background:${habit.color}20;color:${habit.color}">${habit.iconValue}</span>
+            <span class="icon-tile" style="background:${habit.color}20;color:${habit.color}">${renderVisual(habit.iconType, habit.iconValue, habit.color, "md")}</span>
             <div>
               <p class="eyebrow">Habit detail</p>
               <h2>${escapeHtml(habit.name)}</h2>
@@ -822,7 +908,7 @@ function renderDetailModal() {
           <div class="section-header">
             <div>
               <p class="eyebrow">Year heatmap</p>
-              <h3>${appState.selectedYear}</h3>
+              <h3>${CURRENT_YEAR}</h3>
             </div>
           </div>
           <div class="month-labels">
@@ -830,25 +916,6 @@ function renderDetailModal() {
           </div>
           <div class="heatmap detail-heatmap">
             ${yearCells.map((cell) => renderHeatCell(cell, habit.color, true)).join("")}
-          </div>
-        </section>
-        <section class="detail-section">
-          <div class="section-header">
-            <div>
-              <p class="eyebrow">Month calendar</p>
-              <h3>${monthName(appState.selectedMonth)}</h3>
-            </div>
-          </div>
-          <div class="month-switcher">
-            ${Array.from({ length: 12 }, (_, index) => `
-              <button class="${appState.selectedMonth === index ? "month-chip active" : "month-chip"}" data-action="switch-month" data-month="${index}">
-                ${monthName(index).slice(0, 3)}
-              </button>
-            `).join("")}
-          </div>
-          <div class="calendar-grid">
-            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-            ${monthCalendar.map((cell) => renderCalendarCell(cell, habit.color)).join("")}
           </div>
         </section>
       </section>
@@ -878,6 +945,9 @@ function closeModal() {
     appState.formDraft = null;
   }
   renderModalLayer();
+  if (appState.activeModal === "form") {
+    setModalScrollTop(appState.formModalScroll);
+  }
 }
 
 function openHabitForm(habitId = null) {
@@ -894,8 +964,8 @@ function openHabitForm(habitId = null) {
         id: "",
         name: "",
         description: "",
-        iconType: "emoji",
-        iconValue: "✅",
+        iconType: "icon",
+        iconValue: "bolt",
         color: COLORS[0],
         archived: false,
         createdAt: "",
@@ -912,10 +982,12 @@ function openHabitForm(habitId = null) {
   renderModalLayer();
 }
 
-function updateDraftField(field, value) {
+function updateDraftField(field, value, options = {}) {
   if (!appState.formDraft) {
     return;
   }
+
+  const { render = true } = options;
 
   if (field === "targetPerDay") {
     appState.formDraft[field] = Math.max(1, Number(value || 1));
@@ -923,11 +995,26 @@ function updateDraftField(field, value) {
     appState.formDraft[field] = value;
   }
 
-  if (field === "trackingType" && value === "step" && !appState.formDraft.unitLabel) {
+  if (field === "trackingType" && value === "step") {
+    appState.formDraft.targetPerDay = 1;
     appState.formDraft.unitLabel = "";
   }
 
-  renderModalLayer();
+  if (field === "trackingType" && value === "custom" && Number(appState.formDraft.targetPerDay) <= 1) {
+    appState.formDraft.targetPerDay = 2;
+  }
+
+  if (render) {
+    renderModalLayer();
+  }
+}
+
+function renderTrackingModeHint(trackingType) {
+  if (trackingType === "custom") {
+    return "Custom value records a numeric amount for each entry, such as minutes, pages, glasses, or kilometers.";
+  }
+
+  return "Step by step is the simple check-off mode. Each tap adds 1 and the habit is treated as once per day.";
 }
 
 async function saveHabit() {
@@ -935,6 +1022,10 @@ async function saveHabit() {
   if (!validateHabitDraft(draft)) {
     return;
   }
+
+  const trackingType = draft.trackingType === "custom" ? "custom" : "step";
+  const targetPerDay = trackingType === "custom" ? Number(draft.targetPerDay) : 1;
+  const unitLabel = trackingType === "custom" ? draft.unitLabel.trim() : "";
 
   const isNew = !draft.id;
   const habit = {
@@ -947,9 +1038,9 @@ async function saveHabit() {
     archived: false,
     createdAt: draft.createdAt || nowIso(),
     updatedAt: nowIso(),
-    trackingType: draft.trackingType,
-    targetPerDay: Number(draft.targetPerDay),
-    unitLabel: draft.unitLabel.trim(),
+    trackingType,
+    targetPerDay,
+    unitLabel,
     categoryIds: draft.categoryIds || [],
   };
 
@@ -978,6 +1069,7 @@ async function saveHabit() {
 
   renderMain();
   renderModalLayer();
+  renderHeaderActions();
 }
 
 async function saveCustomCategory() {
@@ -1001,6 +1093,7 @@ async function saveCustomCategory() {
   nextIds.add(category.id);
   appState.formDraft.categoryIds = [...nextIds];
   appState.formDraft.categoryDraft = null;
+  showToast(`Category "${category.name}" created`);
   renderModalLayer();
 }
 
@@ -1080,6 +1173,7 @@ async function archiveHabit(habitId) {
   appState.activeModal = null;
   renderMain();
   renderModalLayer();
+  renderHeaderActions();
 }
 
 async function restoreHabit(habitId) {
@@ -1091,6 +1185,7 @@ async function restoreHabit(habitId) {
   await put("habits", { ...habit, archived: false, updatedAt: nowIso() });
   await loadState();
   renderMain();
+  renderHeaderActions();
 }
 
 function buildCompletion(habitId, dateLocal, value) {
@@ -1117,13 +1212,13 @@ function getArchivedHabits() {
 }
 
 function buildYearCells(habitId, year) {
-  const start = new Date(year, 0, 1);
-  const end = new Date(year, 11, 31);
+  const start = Date.UTC(year, 0, 1);
+  const end = Date.UTC(year, 11, 31);
   const cells = [];
+  const habit = appState.habits.find((item) => item.id === habitId);
 
-  for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-    const dateKey = formatDateKey(date);
-    const habit = appState.habits.find((item) => item.id === habitId);
+  for (let time = start; time <= end; time += 86400000) {
+    const dateKey = formatUtcDateKey(new Date(time));
     cells.push({
       dateKey,
       ratio: ratioForDate(habitId, dateKey, habit ? habit.targetPerDay : 1),
@@ -1132,6 +1227,21 @@ function buildYearCells(habitId, year) {
   }
 
   return cells;
+}
+
+function getCompactHeatmapCells(habitId, year) {
+  const cells = buildYearCells(habitId, year);
+  const todayKey = TODAY();
+  const currentYear = new Date().getFullYear();
+
+  if (year === currentYear) {
+    const todayIndex = cells.findIndex((cell) => cell.dateKey === todayKey);
+    if (todayIndex >= 0) {
+      return cells.slice(Math.max(0, todayIndex - 139), todayIndex + 1);
+    }
+  }
+
+  return cells.slice(-140);
 }
 
 function ratioForDate(habitId, dateKey, target) {
@@ -1367,6 +1477,20 @@ function txDone(tx) {
   });
 }
 
+function renderVisual(type, value, color, size = "md") {
+  if (type === "icon") {
+    const icon = ICON_OPTIONS.find((item) => item.value === value) || ICON_OPTIONS[0];
+    const pixelSize = size === "lg" ? 44 : size === "sm" ? 18 : 24;
+    return `
+      <svg class="app-icon app-icon-${size}" viewBox="0 0 24 24" width="${pixelSize}" height="${pixelSize}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="${icon.path}"></path>
+      </svg>
+    `;
+  }
+
+  return `<span class="emoji-mark emoji-${size}">${escapeHtml(value)}</span>`;
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -1375,6 +1499,13 @@ function formatDateKey(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatUtcDateKey(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 

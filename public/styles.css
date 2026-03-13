@@ -17,6 +17,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  color-scheme: dark;
   background:
     radial-gradient(circle at top left, rgba(31, 111, 235, 0.18), transparent 28%),
     radial-gradient(circle at top right, rgba(82, 196, 26, 0.12), transparent 26%),
@@ -42,6 +43,8 @@ button {
 .shell {
   max-width: 1100px;
   margin: 0 auto;
+  display: grid;
+  gap: 10px;
 }
 
 .topbar,
@@ -51,13 +54,10 @@ button {
 .detail-actions,
 .recent-row,
 .archived-item,
-.year-bar,
 .stats-grid,
 .empty-actions,
 .progress-row,
 .mini-header,
-.month-switcher,
-.reminder-row,
 .picker-row,
 .field-grid,
 .header-actions,
@@ -65,11 +65,10 @@ button {
 .form-section .section-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .topbar,
-.year-bar,
 .view-switcher,
 .detail-actions,
 .section-header,
@@ -97,6 +96,11 @@ p {
   margin: 0;
 }
 
+.tagline {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
 .card {
   position: relative;
   background: rgba(18, 25, 34, 0.9);
@@ -106,20 +110,18 @@ p {
   backdrop-filter: blur(18px);
 }
 
-.year-bar,
 .view-switcher,
 .empty-state,
 .archived-panel,
 .recent-board,
 .stat-card {
   padding: 18px;
-  margin-bottom: 18px;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-bottom: 18px;
+  grid-template-columns: 1fr;
+  margin-bottom: 10px;
 }
 
 .stat-card {
@@ -134,6 +136,7 @@ p {
 
 .header-actions {
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .primary-btn,
@@ -193,7 +196,7 @@ p {
 .archived-list,
 .reminder-list {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .habit-card,
@@ -203,7 +206,7 @@ p {
 }
 
 .habit-card {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .card-tap-area {
@@ -316,7 +319,7 @@ p {
 
 .recent-row {
   display: grid;
-  grid-template-columns: 1.4fr repeat(5, minmax(26px, 1fr));
+  grid-template-columns: 1.4fr repeat(7, minmax(26px, 1fr));
   gap: 8px;
   align-items: center;
 }
@@ -376,7 +379,7 @@ p {
 }
 
 .modal-card {
-  width: min(100%, 860px);
+  width: min(100%, 960px);
   margin: 0 auto;
   background: #111923;
   border: 1px solid var(--border);
@@ -391,11 +394,48 @@ p {
   gap: 18px;
 }
 
+.form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 360px);
+  gap: 18px;
+  align-items: start;
+}
+
+.form-column {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.visual-column {
+  justify-self: end;
+  width: 100%;
+}
+
 .form-section,
 .detail-section,
 .section-block {
   display: grid;
-  gap: 14px;
+  gap: 16px;
+}
+
+.form-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.inline-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+  gap: 18px;
+  align-items: start;
+}
+
+.inline-form-main,
+.inline-form-visual {
+  display: grid;
+  gap: 16px;
 }
 
 .form-section label,
@@ -403,6 +443,12 @@ p {
   display: grid;
   gap: 8px;
   color: var(--muted);
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 input,
@@ -419,7 +465,7 @@ select {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 14px;
 }
 
@@ -430,6 +476,24 @@ select {
   display: grid;
   place-items: center;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.icon-preview.large {
+  width: 132px;
+  height: 132px;
+  border-radius: 28px;
+}
+
+.visual-preview {
+  min-height: 180px;
+}
+
+.visual-section {
+  justify-items: center;
+}
+
+.picker-toggle {
+  justify-content: center;
 }
 
 .color-grid,
@@ -469,7 +533,9 @@ select {
 }
 
 .chip.selected {
-  background: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.22), rgba(255, 109, 45, 0.18));
+  border-color: rgba(255, 159, 28, 0.65);
+  color: #ffd39b;
 }
 
 .category-draft {
@@ -489,18 +555,32 @@ select {
 
 .details-block {
   border-top: 1px solid var(--border);
-  padding-top: 12px;
+  padding-top: 16px;
+  display: grid;
+  gap: 18px;
 }
 
 .details-block summary {
   cursor: pointer;
   color: var(--text);
-  margin-bottom: 14px;
 }
 
 .field-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.basic-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.section-block + .section-block {
+  margin-top: 2px;
+}
+
+.habit-list-section {
+  margin-top: 10px;
 }
 
 .toggle {
@@ -526,18 +606,27 @@ select {
 
 .picker-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
 }
 
 .picker-item {
   display: grid;
-  gap: 6px;
   place-items: center;
-  min-height: 88px;
+  min-height: 74px;
   border-radius: 18px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
+}
+
+.picker-item.selected {
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.18), rgba(255, 109, 45, 0.14));
+  border-color: rgba(255, 159, 28, 0.65);
+}
+
+.action-btn.neutral {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .month-labels {
@@ -570,13 +659,73 @@ select {
   border: 0;
 }
 
+.inline-visual,
+.emoji-mark,
+.app-icon {
+  display: inline-grid;
+  place-items: center;
+}
+
+.emoji-lg {
+  font-size: 2.1rem;
+}
+
+.emoji-md {
+  font-size: 1.4rem;
+}
+
+.emoji-sm {
+  font-size: 1rem;
+}
+
+.app-icon-lg {
+  width: 44px;
+  height: 44px;
+}
+
+.app-icon-md {
+  width: 24px;
+  height: 24px;
+}
+
+.app-icon-sm {
+  width: 18px;
+  height: 18px;
+}
+
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 80;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(10, 16, 24, 0.96);
+  box-shadow: var(--shadow);
+}
+
+option {
+  background: #111923;
+  color: var(--text);
+}
+
 @media (max-width: 760px) {
   body {
     padding: 16px 12px 40px;
   }
 
   .stats-grid,
-  .field-grid {
+  .field-grid,
+  .form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .basic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-form-layout {
     grid-template-columns: 1fr;
   }
 
@@ -592,7 +741,7 @@ select {
   }
 
   .recent-row {
-    grid-template-columns: 1.4fr repeat(5, minmax(20px, 1fr));
+    grid-template-columns: 1.2fr repeat(7, minmax(20px, 1fr));
   }
 
   .detail-heatmap {
