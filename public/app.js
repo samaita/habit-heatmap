@@ -54,7 +54,6 @@ const appState = {
   categories: [],
   completions: [],
   reminders: [],
-  activeView: "cards",
   selectedMonth: new Date().getMonth(),
   activeModal: null,
   formDraft: null,
@@ -62,7 +61,6 @@ const appState = {
   pickerQuery: "",
   selectedHabitId: null,
   installPrompt: null,
-  archivedOpen: false,
   reminderCapability: "unsupported",
   toast: null,
   formModalScroll: 0,
@@ -136,11 +134,13 @@ function bindGlobalEvents() {
     event.preventDefault();
     appState.installPrompt = event;
     renderHeaderActions();
+    renderInstallBanner();
   });
 
   window.addEventListener("appinstalled", () => {
     appState.installPrompt = null;
     renderHeaderActions();
+    renderInstallBanner();
   });
 
   document.addEventListener("click", handleClick);
@@ -185,10 +185,6 @@ function handleChange(event) {
     target.closest(".chip")?.classList.toggle("selected", target.checked);
   }
 
-  if (target.matches("[data-view-mode]")) {
-    appState.activeView = target.value;
-    renderMain();
-  }
 }
 
 async function handleClick(event) {
@@ -236,6 +232,15 @@ async function handleClick(event) {
     appState.selectedHabitId = target.dataset.habitId;
     appState.activeModal = "detail";
     renderModalLayer();
+  } else if (action === "prompt-delete-habit") {
+    appState.selectedHabitId = target.dataset.habitId || appState.selectedHabitId;
+    appState.activeModal = "delete-confirm";
+    renderModalLayer();
+  } else if (action === "cancel-delete-habit") {
+    appState.activeModal = "detail";
+    renderModalLayer();
+  } else if (action === "delete-habit") {
+    await deleteHabit(target.dataset.habitId || appState.selectedHabitId);
   } else if (action === "complete-habit") {
     await completeHabit(target.dataset.habitId);
   } else if (action === "decrement-habit") {
@@ -245,11 +250,8 @@ async function handleClick(event) {
   } else if (action === "restore-habit") {
     await restoreHabit(target.dataset.habitId);
   } else if (action === "toggle-archived") {
-    appState.archivedOpen = !appState.archivedOpen;
-    renderMain();
-  } else if (action === "set-view") {
-    appState.activeView = target.dataset.view === "mini" ? "cards" : target.dataset.view;
-    renderMain();
+    appState.activeModal = "archived";
+    renderModalLayer();
   } else if (action === "save-category") {
     await saveCustomCategory();
   } else if (action === "open-category-create") {
@@ -279,6 +281,7 @@ function render() {
       <main id="main-content"></main>
       <section id="modal-layer"></section>
       <section id="toast-layer"></section>
+      <section id="install-banner-layer"></section>
     </div>
   `;
 
@@ -286,6 +289,7 @@ function render() {
   renderMain();
   renderModalLayer();
   renderToast();
+  renderInstallBanner();
 }
 
 function renderHeaderActions() {
@@ -297,9 +301,27 @@ function renderHeaderActions() {
   const archivedCount = getArchivedHabits().length;
 
   root.innerHTML = `
-    ${appState.installPrompt ? '<button class="primary-btn" data-action="install-app">Install</button>' : ""}
-    ${archivedCount > 0 ? '<button class="ghost-btn" data-action="toggle-archived" aria-label="Archived habits">Archive</button>' : ""}
+    ${archivedCount > 0 ? '<button class="ghost-btn warn-outline" data-action="toggle-archived" aria-label="Archived habits">Archive</button>' : ""}
     <button class="primary-btn" data-action="open-create" aria-label="Create habit">+</button>
+  `;
+}
+
+function renderInstallBanner() {
+  const root = document.querySelector("#install-banner-layer");
+  if (!root) {
+    return;
+  }
+
+  if (!appState.installPrompt) {
+    root.innerHTML = "";
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="install-banner">
+      <span>Install Habit Heatmap for faster access</span>
+      <button class="install-banner-btn" data-action="install-app">Install</button>
+    </div>
   `;
 }
 
@@ -310,12 +332,10 @@ function renderMain() {
   }
 
   const activeHabits = getActiveHabits();
-  const archived = getArchivedHabits();
 
   root.innerHTML = `
     ${activeHabits.length > 0 ? renderDashboardStats(activeHabits) : ""}
     ${activeHabits.length === 0 ? renderEmptyState() : renderHabits(activeHabits)}
-    ${appState.archivedOpen && archived.length > 0 ? renderArchived(archived) : ""}
   `;
 }
 
@@ -349,27 +369,10 @@ function renderEmptyState() {
 }
 
 function renderHabits(activeHabits) {
-  const activeView = appState.activeView === "mini" ? "cards" : appState.activeView;
   return `
-    <section class="view-switcher card">
-      <div class="segmented">
-        ${renderViewButton(activeView, "cards", "Cards")}
-        ${renderViewButton(activeView, "recent", "Weekly")}
-      </div>
-      <span class="caption">${activeHabits.length} active habit${activeHabits.length === 1 ? "" : "s"}</span>
-    </section>
     <section class="habit-list-section">
-      ${activeView === "cards" ? renderCardsView(activeHabits) : ""}
-      ${activeView === "recent" ? renderRecentView(activeHabits) : ""}
+      ${renderCardsView(activeHabits)}
     </section>
-  `;
-}
-
-function renderViewButton(activeView, view, label) {
-  return `
-    <button class="${activeView === view ? "segmented-btn active" : "segmented-btn"}" data-action="set-view" data-view="${view}">
-      ${label}
-    </button>
   `;
 }
 
@@ -389,8 +392,7 @@ function renderHabitCard(habit) {
   const subtitle = habit.description ? escapeHtml(habit.description) : "";
 
   return `
-    <article class="card habit-card" style="--accent:${accent}">
-      <button class="card-tap-area" data-action="edit-habit" data-habit-id="${habit.id}" aria-label="Edit ${escapeHtml(habit.name)}"></button>
+    <article class="card habit-card" style="--accent:${accent}" data-action="open-detail" data-habit-id="${habit.id}" aria-label="Open ${escapeHtml(habit.name)} detail">
       <div class="habit-card-header">
         <div class="habit-meta">
           <div class="icon-tile" style="background:${accent}20;color:${accent}">${renderVisual(habit.iconType, habit.iconValue, accent, "md")}</div>
@@ -400,8 +402,8 @@ function renderHabitCard(habit) {
           </div>
         </div>
         <div class="habit-card-actions">
-          ${habit.targetPerDay > 1 ? `<button class="ghost-btn small" data-action="decrement-habit" data-habit-id="${habit.id}" aria-label="Decrease ${escapeHtml(habit.name)}">−</button>` : ""}
-          <button class="${isComplete ? "primary-btn action-btn" : "ghost-btn action-btn neutral"}" data-action="complete-habit" data-habit-id="${habit.id}" aria-label="Complete ${escapeHtml(habit.name)}">
+          ${habit.targetPerDay > 1 ? `<button class="ghost-btn small card-action-control" data-action="decrement-habit" data-habit-id="${habit.id}" aria-label="Decrease ${escapeHtml(habit.name)}">−</button>` : ""}
+          <button class="${isComplete ? "primary-btn action-btn" : "ghost-btn action-btn neutral"} card-action-control" data-action="complete-habit" data-habit-id="${habit.id}" aria-label="Complete ${escapeHtml(habit.name)}">
             ${habit.trackingType === "custom" ? "+" : habit.targetPerDay === 1 ? (isComplete ? "✓" : "○") : "+"}
           </button>
         </div>
@@ -424,82 +426,15 @@ function renderCompactHeatmap(habit) {
   `;
 }
 
-function renderRecentView(habits) {
-  const dates = getLastNDates(7);
-  return `
-    <div class="card recent-board">
-      <div class="recent-header">
-        <h2>Last 7 days</h2>
-        <span>Compact daily progress</span>
-      </div>
-      <div class="recent-grid">
-        <div class="recent-row head">
-          <span>Habit</span>
-          ${dates.map((date) => `<span>${formatShortDate(date)}</span>`).join("")}
-        </div>
-        ${habits
-          .map(
-            (habit) => `
-              <div class="recent-row">
-                <button class="recent-habit-label" data-action="open-detail" data-habit-id="${habit.id}">
-                  <span class="inline-visual">${renderVisual(habit.iconType, habit.iconValue, habit.color, "sm")}</span>
-                  <span>${escapeHtml(habit.name)}</span>
-                </button>
-                ${dates
-                  .map((date) =>
-                    renderHeatCell(
-                      {
-                        dateKey: formatDateKey(date),
-                        ratio: ratioForDate(habit.id, formatDateKey(date), habit.targetPerDay),
-                      },
-                      habit.color,
-                      false
-                    )
-                  )
-                  .join("")}
-              </div>
-            `
-          )
-          .join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderMiniView(habits) {
-  return `
-    <div class="mini-grid">
-      ${habits
-        .map(
-          (habit) => `
-            <article class="card mini-card" style="--accent:${habit.color}">
-              <button class="card-tap-area" data-action="open-detail" data-habit-id="${habit.id}" aria-label="Open ${escapeHtml(habit.name)} detail"></button>
-              <div class="mini-header">
-                <span class="icon-tile mini" style="background:${habit.color}20;color:${habit.color}">${habit.iconValue}</span>
-                <div>
-                  <h3>${escapeHtml(habit.name)}</h3>
-                  <p>${getDailyTotal(habit.id, TODAY())}/${habit.targetPerDay} today</p>
-                </div>
-              </div>
-              <div class="heatmap mini-heatmap">
-                ${buildYearCells(habit.id, CURRENT_YEAR).slice(-63).map((cell) => renderHeatCell(cell, habit.color, true)).join("")}
-              </div>
-            </article>
-          `
-        )
-        .join("")}
-    </div>
-  `;
-}
-
 function renderArchived(archivedHabits) {
   return `
-    <section class="card archived-panel">
+    <section class="modal-card archived-panel">
       <div class="section-header">
         <div>
           <p class="eyebrow">Archived</p>
           <h2>${archivedHabits.length} habit${archivedHabits.length === 1 ? "" : "s"}</h2>
         </div>
+        <button class="ghost-btn" data-action="close-modal">✕</button>
       </div>
       ${archivedHabits.length === 0 ? "<p class='muted'>No archived habits yet.</p>" : ""}
       <div class="archived-list">
@@ -543,6 +478,18 @@ function renderModalLayer() {
 
   if (appState.activeModal === "detail" && appState.selectedHabitId) {
     root.innerHTML = renderDetailModal();
+    restoreModalScroll(scrollState);
+    return;
+  }
+
+  if (appState.activeModal === "archived") {
+    root.innerHTML = `<div class="modal-backdrop">${renderArchived(getArchivedHabits())}</div>`;
+    restoreModalScroll(scrollState);
+    return;
+  }
+
+  if (appState.activeModal === "delete-confirm" && appState.selectedHabitId) {
+    root.innerHTML = renderDeleteConfirmModal();
     restoreModalScroll(scrollState);
     return;
   }
@@ -885,7 +832,8 @@ function renderDetailModal() {
   }
 
   const yearCells = buildYearCells(habit.id, CURRENT_YEAR);
-  const months = buildMonthOptions(CURRENT_YEAR);
+  const filledCells = yearCells.filter((cell) => cell.ratio > 0).length;
+  const totalCells = yearCells.length;
 
   return `
     <div class="modal-backdrop">
@@ -902,22 +850,53 @@ function renderDetailModal() {
         </div>
         <div class="detail-actions">
           <button class="ghost-btn" data-action="edit-habit">Edit</button>
-          <button class="ghost-btn danger" data-action="archive-habit" data-habit-id="${habit.id}">Archive</button>
+          <div class="detail-actions-right">
+            <button class="ghost-btn warn-outline" data-action="archive-habit" data-habit-id="${habit.id}">Archive</button>
+            <button class="ghost-btn danger" data-action="prompt-delete-habit" data-habit-id="${habit.id}">Delete</button>
+          </div>
         </div>
         <section class="detail-section">
           <div class="section-header">
             <div>
               <p class="eyebrow">Year heatmap</p>
-              <h3>${CURRENT_YEAR}</h3>
+              <h3>${filledCells}/${totalCells} filled this year</h3>
             </div>
-          </div>
-          <div class="month-labels">
-            ${months.map((month) => `<span>${month}</span>`).join("")}
           </div>
           <div class="heatmap detail-heatmap">
             ${yearCells.map((cell) => renderHeatCell(cell, habit.color, true)).join("")}
           </div>
         </section>
+      </section>
+    </div>
+  `;
+}
+
+function renderDeleteConfirmModal() {
+  const habit = appState.habits.find((item) => item.id === appState.selectedHabitId);
+  if (!habit) {
+    return "";
+  }
+
+  const description = habit.description ? escapeHtml(habit.description) : "No description";
+
+  return `
+    <div class="modal-backdrop">
+      <section class="modal-card confirm-modal">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Delete habit</p>
+            <h2>Delete ${escapeHtml(habit.name)}?</h2>
+          </div>
+          <button class="ghost-btn" data-action="cancel-delete-habit" aria-label="Close delete confirmation">✕</button>
+        </div>
+        <div class="confirm-copy">
+          <p>Are you sure you want to delete <strong>${escapeHtml(habit.name)}</strong>?</p>
+          <p class="muted">${description}</p>
+        </div>
+        <div class="detail-actions">
+          <button class="ghost-btn" data-action="cancel-delete-habit">Cancel</button>
+          <button class="ghost-btn danger" data-action="delete-habit" data-habit-id="${habit.id}">Delete</button>
+        </div>
       </section>
     </div>
   `;
@@ -940,6 +919,8 @@ function renderCalendarCell(cell, color) {
 function closeModal() {
   if (appState.activeModal === "picker") {
     appState.activeModal = "form";
+  } else if (appState.activeModal === "delete-confirm") {
+    appState.activeModal = "detail";
   } else {
     appState.activeModal = null;
     appState.formDraft = null;
@@ -1184,8 +1165,35 @@ async function restoreHabit(habitId) {
 
   await put("habits", { ...habit, archived: false, updatedAt: nowIso() });
   await loadState();
+  if (getArchivedHabits().length === 0) {
+    appState.activeModal = null;
+  }
   renderMain();
+  renderModalLayer();
   renderHeaderActions();
+}
+
+async function deleteHabit(habitId) {
+  const habit = appState.habits.find((item) => item.id === habitId);
+  if (!habit) {
+    return;
+  }
+
+  const completions = appState.completions.filter((item) => item.habitId === habit.id);
+  const reminders = appState.reminders.filter((item) => item.habitId === habit.id);
+
+  await Promise.all(completions.map((item) => remove("completions", item.id)));
+  await Promise.all(reminders.map((item) => remove("reminders", item.id)));
+  await remove("habits", habit.id);
+
+  appState.activeModal = null;
+  appState.selectedHabitId = null;
+  await loadState();
+  scheduleReminders();
+  renderMain();
+  renderModalLayer();
+  renderHeaderActions();
+  showToast(`Deleted "${habit.name}"`);
 }
 
 function buildCompletion(habitId, dateLocal, value) {
@@ -1231,17 +1239,18 @@ function buildYearCells(habitId, year) {
 
 function getCompactHeatmapCells(habitId, year) {
   const cells = buildYearCells(habitId, year);
+  const compactLength = 21;
   const todayKey = TODAY();
   const currentYear = new Date().getFullYear();
 
   if (year === currentYear) {
     const todayIndex = cells.findIndex((cell) => cell.dateKey === todayKey);
     if (todayIndex >= 0) {
-      return cells.slice(Math.max(0, todayIndex - 139), todayIndex + 1);
+      return cells.slice(Math.max(0, todayIndex - (compactLength - 1)), todayIndex + 1);
     }
   }
 
-  return cells.slice(-140);
+  return cells.slice(-compactLength);
 }
 
 function ratioForDate(habitId, dateKey, target) {
@@ -1324,6 +1333,7 @@ async function promptInstall() {
   await appState.installPrompt.prompt();
   appState.installPrompt = null;
   renderHeaderActions();
+  renderInstallBanner();
 }
 
 async function requestNotificationPermission() {
