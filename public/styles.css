@@ -41,7 +41,7 @@ button {
 }
 
 .shell {
-  max-width: 1100px;
+  width: min(100%, 480px);
   margin: 0 auto;
   display: grid;
   gap: 10px;
@@ -362,7 +362,7 @@ p {
 }
 
 .modal-card {
-  width: min(100%, 960px);
+  width: min(100%, 480px);
   margin: 0 auto;
   background: #111923;
   border: 1px solid var(--border);
@@ -389,7 +389,7 @@ p {
 
 .form-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 360px);
+  grid-template-columns: 1fr;
   gap: 18px;
   align-items: start;
 }
@@ -401,7 +401,6 @@ p {
 }
 
 .visual-column {
-  justify-self: end;
   width: 100%;
 }
 
@@ -412,15 +411,9 @@ p {
   gap: 16px;
 }
 
-.form-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .inline-form-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+  grid-template-columns: 1fr;
   gap: 18px;
   align-items: start;
 }
@@ -560,12 +553,12 @@ select {
 
 .field-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
 .basic-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .section-block + .section-block {
@@ -680,9 +673,11 @@ select {
 
 .toast {
   position: fixed;
-  right: 16px;
+  left: 50%;
   bottom: 16px;
+  transform: translateX(-50%);
   z-index: 80;
+  width: min(calc(100vw - 32px), 480px);
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid var(--border);
@@ -695,53 +690,45 @@ option {
   color: var(--text);
 }
 
+.topbar {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.header-actions,
+.detail-actions,
+.habit-card-header {
+  width: 100%;
+}
+
+.detail-heatmap {
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+}
+
+.calendar-cell {
+  min-height: 56px;
+}
+
+.install-banner {
+  left: 50%;
+  right: auto;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: min(calc(100vw - 24px), 480px);
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.install-banner-btn {
+  width: 100%;
+}
+
 @media (max-width: 760px) {
   body {
     padding: 16px 12px 120px;
   }
 
-  .stats-grid,
-  .field-grid,
-  .form-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .basic-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .inline-form-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .header-actions,
-  .detail-actions,
-  .habit-card-header {
-    width: 100%;
-  }
-
-  .detail-heatmap {
-    grid-template-columns: repeat(18, minmax(0, 1fr));
-  }
-
-  .calendar-cell {
-    min-height: 56px;
-  }
-
   .install-banner {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .install-banner-btn {
-    width: 100%;
+    width: min(calc(100vw - 24px), 480px);
   }
 }

@@ -301,8 +301,8 @@ function renderHeaderActions() {
   const archivedCount = getArchivedHabits().length;
 
   root.innerHTML = `
-    ${archivedCount > 0 ? '<button class="ghost-btn warn-outline" data-action="toggle-archived" aria-label="Archived habits">Archive</button>' : ""}
-    <button class="primary-btn" data-action="open-create" aria-label="Create habit">+</button>
+    ${archivedCount > 0 ? '<button class="ghost-btn warn-outline" data-action="toggle-archived" aria-label="Archived habits">Archives</button>' : ""}
+    <button class="ghost-btn warn-outline" data-action="open-create" aria-label="Create habit">✨ New Habit</button>
   `;
 }
 
@@ -623,32 +623,31 @@ function renderHabitFormModal() {
         <div class="form-layout">
           <div class="form-column">
             <div class="form-section">
-              <div class="form-section-head">
-                <div>
-                  <p class="eyebrow">Habit</p>
-                  <h3>Core details</h3>
-                </div>
+              <button class="picker-preview visual-preview" data-action="open-picker" data-tab="${draft.iconType}">
+                <span class="icon-preview large" style="background:${draft.color}20;color:${draft.color}">
+                  ${renderVisual(draft.iconType, draft.iconValue, draft.color, "lg")}
+                </span>
+              </button>
+              <div class="picker-toggle segmented">
+                <button class="${draft.iconType === "icon" ? "segmented-btn active" : "segmented-btn"}" data-action="set-icon-type" data-tab="icon">Icon</button>
+                <button class="${draft.iconType === "emoji" ? "segmented-btn active" : "segmented-btn"}" data-action="set-icon-type" data-tab="emoji">Emoji</button>
               </div>
-              <div class="inline-form-layout">
-                <div class="inline-form-main">
-                  <label>Name
-                    <input data-field="name" maxlength="60" placeholder="Read 10 pages" value="${escapeAttr(draft.name)}" />
-                  </label>
-                  <label>Description
-                    <input data-field="description" maxlength="120" placeholder="Optional note" value="${escapeAttr(draft.description || "")}" />
-                  </label>
-                </div>
-                <div class="inline-form-visual">
-                  <button class="picker-preview visual-preview" data-action="open-picker" data-tab="${draft.iconType}">
-                    <span class="icon-preview large" style="background:${draft.color}20;color:${draft.color}">
-                      ${renderVisual(draft.iconType, draft.iconValue, draft.color, "lg")}
-                    </span>
-                  </button>
-                  <div class="picker-toggle segmented">
-                    <button class="${draft.iconType === "icon" ? "segmented-btn active" : "segmented-btn"}" data-action="set-icon-type" data-tab="icon">Icon</button>
-                    <button class="${draft.iconType === "emoji" ? "segmented-btn active" : "segmented-btn"}" data-action="set-icon-type" data-tab="emoji">Emoji</button>
-                  </div>
-                </div>
+            </div>
+            <div class="form-section">
+              <label>Name
+                <input data-field="name" maxlength="60" placeholder="Read 10 pages" value="${escapeAttr(draft.name)}" />
+              </label>
+            </div>
+
+            <div class="form-section">
+              <label>Description
+                <input data-field="description" maxlength="120" placeholder="Optional note" value="${escapeAttr(draft.description || "")}" />
+              </label>
+            </div>
+
+            <div class="form-section">
+              <div class="color-grid">
+                ${COLORS.map((color) => renderColorOption(color, color === draft.color)).join("")}
               </div>
             </div>
 
@@ -680,20 +679,6 @@ function renderHabitFormModal() {
                 ` : ""}
               </div>
             </details>
-          </div>
-
-          <div class="form-column visual-column">
-            <div class="form-section">
-              <div class="section-header">
-                <div>
-                  <p class="eyebrow">Color</p>
-                  <h3>Pick one accent</h3>
-                </div>
-              </div>
-              <div class="color-grid">
-                ${COLORS.map((color) => renderColorOption(color, color === draft.color)).join("")}
-              </div>
-            </div>
           </div>
         </div>
 
